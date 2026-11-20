@@ -2,6 +2,24 @@
 <html lang="ru">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+#weekly-report table{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}
+#weekly-report th,#weekly-report td{padding:7px 5px;text-align:left;vertical-align:top;border-bottom:1px solid #7890a266;overflow-wrap:anywhere}
+#weekly-report th:first-child{width:18%}
+#weekly-report th:nth-child(2){width:19%}
+#weekly-report th:nth-child(3){width:24%}
+#weekly-report-controls{margin:10px 0}
+#weekly-report-controls input{color:inherit;background:transparent;border:1px solid #7890a2;border-radius:10px;min-height:44px;padding:6px}
+@media(max-width:480px){#weekly-report table{font-size:.82rem}}
+@media print{
+  @page{size:A4 portrait;margin:12mm}
+  :root{color-scheme:light!important;background:white!important;color:black!important}
+  main{padding:0!important;max-width:none!important}
+  main > :not(#weekly-report),#weekly-report > summary,#weekly-report-controls,body > dialog{display:none!important}
+  #weekly-report{margin:0!important;padding:0!important;border:0!important;background:white!important;color:black!important;font-size:10pt}
+  #weekly-report tr{break-inside:avoid}
+}
+</style>
 <meta name="theme-color" content="#121b25">
 <title>Мой мур-дневничок ))</title>
 
@@ -267,6 +285,31 @@ button:focus-visible,input:focus-visible,select:focus-visible,#check-in-note:foc
     </form>
     <ul id="measure-history" aria-label="История измерений" hidden></ul>
   </details>
+  <details class="nutrition">
+    <summary>Резервная копия</summary>
+    <p class="muted">Копия содержит личные записи дневника. Храни её в безопасном месте.</p>
+    <div class="actions">
+      <button id="backup-save" type="button">Сохранить копию</button>
+      <button id="backup-open" type="button">Восстановить из копии</button>
+    </div>
+    <input id="backup-file" type="file" accept=".json,application/json" hidden>
+    <p id="backup-status" class="muted" role="status"></p>
+  </details>
+  <details id="weekly-report" class="nutrition">
+    <summary>Отчёт за неделю</summary>
+    <div id="weekly-report-controls" class="actions">
+      <label>Любая дата недели <input id="weekly-report-date" type="date" required></label>
+      <button id="weekly-report-current" type="button">Текущая неделя</button>
+      <button id="weekly-report-print" class="primary" type="button">Сохранить PDF</button>
+    </div>
+    <h2>Мой мур-дневничок · Отчёт за неделю</h2>
+    <p id="weekly-report-period"></p>
+    <p id="weekly-report-measurements"></p>
+    <table>
+      <thead><tr><th scope="col">День</th><th scope="col">Съедено, примерно</th><th scope="col">Движение</th><th scope="col">Настроение и самочувствие</th></tr></thead>
+      <tbody id="weekly-report-rows"></tbody>
+    </table>
+  </details>
   <p id="status" class="status" role="status"></p>
 </main>
 <dialog id="picker" aria-labelledby="picker-title">
@@ -324,6 +367,34 @@ const selectedDate = parsedDate && dateInputValue(parsedDate) === requestedDate 
 const isToday = dateInputValue(selectedDate) === dateInputValue(today);
 const day = [selectedDate.getFullYear(), selectedDate.getMonth()+1, selectedDate.getDate()].join('-');
 const key = 'mur-menu-v1';
+const backupFormat = 'mur-diary-backup';
+const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+
+function parseBackup(text) {
+  const backup = JSON.parse(text, (name, value) => {
+    if (['__proto__', 'constructor', 'prototype'].includes(name)) throw new Error('Invalid key');
+    return value;
+  });
+  const data = backup?.data;
+  const validDish = dish => Array.isArray(dish) && typeof dish[0] === 'string';
+  const validDay = meals => Array.isArray(meals) && meals.length === slots.length
+    && meals.every(meal => isRecord(meal) && typeof meal.time === 'string'
+      && (meal.dish == null || validDish(meal.dish))
+      && (meal.extra == null || validDish(meal.extra))
+      && (meal.additional == null || (Array.isArray(meal.additional) && meal.additional.every(validDish)))
+      && (meal.portions == null || (Array.isArray(meal.portions) && meal.portions.every(Array.isArray))));
+  if (backup?.format !== backupFormat || backup.version !== 1 || !isRecord(data)
+      || !isRecord(data.days) || !Object.values(data.days).every(validDay)
+      || !Array.isArray(data.family) || !data.family.every(validDish)
+      || (data.movement != null && (!isRecord(data.movement) || !Object.values(data.movement)
+        .every(records => Array.isArray(records) && records.every(item => typeof item === 'string' || (isRecord(item) && typeof item.name === 'string')))))
+      || (data.checkIns != null && (!isRecord(data.checkIns) || !Object.values(data.checkIns).every(isRecord)))
+      || (data.measurements != null && (!Array.isArray(data.measurements) || !data.measurements
+        .every(item => isRecord(item) && [item.date, item.height, item.weight].every(Number.isFinite))))) {
+    throw new Error('Invalid backup');
+  }
+  return data;
+}
 let all = {days:{}, family:[]};
 try {
   const saved = JSON.parse(localStorage.getItem(key));
@@ -690,5 +761,107 @@ checkInForm.addEventListener('change', () => { checkInStatus.hidden = true; });
 render();
 renderMovement();
 renderMeasurements();
+
+const backupFile = find('backup-file');
+const reportDate = find('weekly-report-date');
+const reportDateFormat = new Intl.DateTimeFormat('ru', {weekday:'short', day:'numeric', month:'long', timeZone:'UTC'});
+const reportPeriodFormat = new Intl.DateTimeFormat('ru', {day:'numeric', month:'long', year:'numeric', timeZone:'UTC'});
+const reportNumber = new Intl.NumberFormat('ru', {maximumFractionDigits:1});
+reportDate.value = dateInputValue(today);
+
+function weekDates(dateText) {
+  if (!dateText) return [];
+  const selected = new Date(dateText + 'T00:00:00Z');
+  if (!Number.isFinite(selected.valueOf())) return [];
+  const monday = selected.valueOf() - ((selected.getUTCDay() + 6) % 7) * dayLength;
+  return Array.from({length:7}, (_, index) => new Date(monday + index * dayLength));
+}
+
+function reportCalories(dayKey) {
+  const eaten = (all.days[dayKey] ?? []).filter(meal => meal.eaten);
+  const foods = eaten.flatMap(meal => mealDishes(meal).map(([name]) => nutrientsFor(meal, name)));
+  if (!foods.length) return '—';
+  const known = foods.filter(Boolean);
+  if (!known.length) return 'Нет данных о составе';
+  const total = Math.round(known.reduce((sum, values) => sum + values[0], 0));
+  const estimate = `≈ ${reportNumber.format(total)} ккал`;
+  return known.length < foods.length ? estimate + ' · неполная оценка' : estimate;
+}
+
+function renderWeeklyReport() {
+  const dates = weekDates(reportDate.value);
+  if (!dates.length) return;
+  const end = dates.at(-1);
+  find('weekly-report-period').textContent = `Период: ${reportPeriodFormat.format(dates[0])} — ${reportPeriodFormat.format(end)}`;
+  const measurement = all.measurements.reduce((latest, item) =>
+    item.date <= end.valueOf() && (!latest || item.date >= latest.date) ? item : latest, null);
+  find('weekly-report-measurements').textContent = measurement
+    ? `Рост: ${reportNumber.format(measurement.height)} см · Вес: ${reportNumber.format(measurement.weight)} кг · Измерение: ${reportPeriodFormat.format(measurement.date)}`
+    : 'Рост и вес: —';
+  const rows = dates.map(date => {
+    const dayKey = [date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate()].join('-');
+    const activities = (all.movement[dayKey] ?? []).map(record => typeof record === 'string'
+      ? record : [record.name, record.duration && `${record.duration} мин`].filter(Boolean).join(', '));
+    const checkIn = all.checkIns[dayKey];
+    const state = [checkIn?.mood, checkIn?.body].filter(Boolean).join(' · ');
+    const row = document.createElement('tr');
+    for (const text of [reportDateFormat.format(date), reportCalories(dayKey), activities.join('; ') || '—', state || '—']) {
+      const cell = document.createElement('td');
+      cell.textContent = text;
+      row.append(cell);
+    }
+    return row;
+  });
+  find('weekly-report-rows').replaceChildren(...rows);
+}
+
+find('weekly-report').addEventListener('toggle', event => {
+  if (event.currentTarget.open) renderWeeklyReport();
+});
+reportDate.addEventListener('change', renderWeeklyReport);
+find('weekly-report-current').addEventListener('click', () => {
+  reportDate.value = dateInputValue(new Date());
+  renderWeeklyReport();
+});
+find('weekly-report-print').addEventListener('click', () => {
+  if (!reportDate.reportValidity()) return;
+  renderWeeklyReport();
+  window.print();
+});
+renderWeeklyReport();
+const backupStatus = find('backup-status');
+find('backup-save').addEventListener('click', () => {
+  const contents = JSON.stringify({format:backupFormat, version:1, data:all});
+  const url = URL.createObjectURL(new Blob([contents], {type:'application/json'}));
+  const download = document.createElement('a');
+  download.href = url;
+  download.download = `mur-diary-${dateInputValue(new Date())}.json`;
+  document.body.append(download);
+  download.click();
+  download.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  backupStatus.textContent = 'Копия подготовлена. Проверь папку загрузок или приложение «Файлы».';
+});
+find('backup-open').addEventListener('click', () => backupFile.click());
+backupFile.addEventListener('change', async () => {
+  const file = backupFile.files[0];
+  backupFile.value = '';
+  if (!file) return;
+  let data;
+  try {
+    data = parseBackup(await file.text());
+  } catch {
+    backupStatus.textContent = 'Не удалось прочитать копию дневника.';
+    return;
+  }
+  if (!confirm('Восстановление заменит все записи в этом браузере. Продолжить?')) return;
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch {
+    backupStatus.textContent = 'Браузер не смог сохранить восстановленные записи.';
+    return;
+  }
+  location.reload();
+});
 </script>
 </html>
