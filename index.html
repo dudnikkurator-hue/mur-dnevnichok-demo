@@ -154,14 +154,12 @@ button,.time{background:#e8f3fa;color:#284658}.primary{background:#31576e;color:
 article,dialog{border-color:#cfe0ea}.icon{background:#e8f3fa} dialog{background:#f7fbff}.status{color:#445868}
 .nutrition{margin-top:16px;padding:14px 16px;border:1px solid #cfe0ea;border-radius:18px;background:white}
 .nutrition summary{cursor:pointer;font-weight:700;min-height:32px;color:#284658}
-#eaten-title,#movement-title,#check-in-title,#my-day-title{font-size:1.3rem}
+#eaten-title,#movement-title,#my-day-title{font-size:1.3rem}
 .nutrition p + p{margin-top:6px}
 .nutrition h2{margin-bottom:6px}
 .nutrition ul{margin:6px 0 12px;padding-inline-start:22px}
 .nutrition li{overflow-wrap:anywhere}
 .nutrition li + li{margin-top:10px}
-#check-in-note{width:100%;min-height:96px;resize:vertical;padding:10px;border:1px solid #bca6c6;border-radius:12px;background:white;color:inherit;font:inherit}
-#check-in-note:focus-visible{outline:3px solid #376982;outline-offset:2px}
 .nutrient-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .nutrient-fields label{display:grid;gap:4px;font-size:.9rem}
 .options button[aria-pressed="true"]{background:#31576e;color:white}
@@ -177,8 +175,8 @@ article,.nutrition,dialog{background:#1b2936;border-color:#344a5c;color:#eaf3fa}
 button,.time,.icon{background:#283f51;color:#e0f0fc}
 .primary,.options button[aria-pressed=true]{background:#a5d6f4;color:#132b3c}
 .quiet{background:#293745;color:#e0edf7}
-.day-nav input,.custom input,.custom select,#check-in-note{background:#15232f;border-color:#526c80;color:#eaf3fa}
-button:focus-visible,input:focus-visible,select:focus-visible,#check-in-note:focus-visible{outline-color:#a5d6f4}
+.day-nav input,.custom input,.custom select{background:#15232f;border-color:#526c80;color:#eaf3fa}
+button:focus-visible,input:focus-visible,select:focus-visible{outline-color:#a5d6f4}
 </style>
 <main>
   <div class="brand">🐾 Мур-меню</div>
@@ -244,36 +242,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,#check-in-note:foc
       <button type="submit">Добавить запись</button>
     </form>
   </details>
-  <details class="nutrition" aria-labelledby="check-in-title">
-    <summary id="check-in-title">Как я сегодня?</summary>
-    <form id="check-in-form" class="custom">
-      <div class="nutrient-fields">
-        <label>Самочувствие
-          <select id="check-in-body">
-            <option value="">Выбрать</option>
-            <option>Хорошее</option>
-            <option>Обычное</option>
-            <option>Устала</option>
-            <option>Чувствую себя плохо</option>
-          </select>
-        </label>
-        <label>Настроение
-          <select id="check-in-mood">
-            <option value="">Выбрать</option>
-            <option>Радостное</option>
-            <option>Спокойное</option>
-            <option>Тревожное</option>
-            <option>Грустное</option>
-            <option>По-разному</option>
-          </select>
-        </label>
-      </div>
-      <label for="check-in-note">Заметка о состоянии</label>
-      <textarea id="check-in-note" rows="3" placeholder="Можно написать своими словами"></textarea>
-      <button type="submit">Сохранить отметку</button>
-      <p id="check-in-status" class="muted" role="status" hidden></p>
-    </form>
-  </details>
   <details class="nutrition">
     <summary>Рост и вес</summary>
     <p id="measure-note" class="muted"></p>
@@ -324,6 +292,32 @@ button:focus-visible,input:focus-visible,select:focus-visible,#check-in-note:foc
     <select id="dish-kind" aria-label="Что есть в блюде"><option value="">Состав, по желанию</option><option value="protein">Есть источник белка</option></select>
     <button type="submit">Добавить к выбору</button>
   </form>
+  <details id="pantry-lookup">
+    <summary>Продукты без упаковки</summary>
+    <form id="pantry-form" class="custom">
+      <label for="pantry-query">Название продукта</label>
+      <input id="pantry-query" type="search" placeholder="Например, куриная ножка">
+      <label for="pantry-product">Продукт</label>
+      <select id="pantry-product" required></select>
+      <label for="pantry-portion">Примерная порция</label>
+      <select id="pantry-portion" required></select>
+      <button id="pantry-add" type="submit">Добавить к выбору</button>
+      <p id="pantry-status" class="muted" role="status"></p>
+    </form>
+    <p class="muted">Порции примерные. Для голени учитывается съедобная часть без кости. <a href="https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/methods-and-application-of-food-composition-laboratory/mafcl-site-pages/sr28-page-reports/" target="_blank" rel="noopener noreferrer">Справочник USDA</a>.</p>
+  </details>
+  <details id="food-lookup">
+    <summary>Найти продукт по штрихкоду</summary>
+    <form id="food-search" class="custom">
+      <label for="food-barcode">Цифры под штрихкодом на упаковке</label>
+      <input id="food-barcode" inputmode="numeric" pattern="[0-9]{8,14}" maxlength="14" required>
+      <label for="food-amount">Сколько примерно, г или мл (по умолчанию 100)</label>
+      <input id="food-amount" type="number" inputmode="numeric" min="1" step="1" placeholder="100">
+      <button type="submit">Найти продукт</button>
+      <p id="food-search-status" class="muted" role="status"></p>
+    </form>
+    <p class="muted">Данные с упаковок: <a href="https://world.openfoodfacts.org/" target="_blank" rel="noopener noreferrer">Open Food Facts</a> (ODbL).</p>
+  </details>
 </dialog>
 <script>
 const slots = [
@@ -410,11 +404,27 @@ const picker = find('picker');
 let selection = null;
 const mealDishes = meal => [meal.dish, ...(meal.additional ?? []), meal.extra].filter(Boolean);
 const referenceWeights = [260,180,150,250,180,180,330,280,250,105,150,280,280,280,175,285,180,75,35,120,20,35,100,150];
+// USDA SR28: 05069, 05064, 01129, 15237. Portions are approximate edible weights.
+const pantry = [
+  {name:'Куриная голень, запечённая', aliases:'куриная ножка курица', per100:[191,23.35,10.15,0],
+    portions:[['1 средняя голень',70],['½ средней голени',35],['2 средние голени',140]]},
+  {name:'Куриная грудка, запечённая', aliases:'курица филе', per100:[165,31.02,3.57,0],
+    portions:[['Средний кусок',100],['Небольшой кусок',60],['Большой кусок',150]]},
+  {name:'Яйцо варёное', aliases:'яйца вареные', per100:[155,12.58,10.61,1.12],
+    portions:[['1 яйцо',50],['½ яйца',25],['2 яйца',100]]},
+  {name:'Сёмга запечённая', aliases:'рыба лосось филе', per100:[206,22.1,12.35,0],
+    portions:[['Средний кусок',100],['Небольшой кусок',60],['Большой кусок',150]]}
+];
 const nutritionPer100 = new Map([...nutrition].map(([name, values], index) => [
   name, values.map(value => value * 100 / referenceWeights[index])
 ]));
 function nutrientsFor(meal, name) {
   const grams = meal.portions?.find(([dish]) => dish === name)?.[1];
+  const imported = mealDishes(meal).find(dish => dish[0] === name)?.[2]?.per100;
+  if (Array.isArray(imported) && imported.length === 4 && imported.every(Number.isFinite)) {
+    const amount = mealDishes(meal).find(dish => dish[0] === name)[2].amount;
+    return imported.map(value => value * (grams ?? (Number.isFinite(amount) && amount > 0 ? amount : 100)) / 100);
+  }
   if (!grams && nutrition.has(name)) return nutrition.get(name);
   const normalized = name.toLocaleLowerCase('ru').replaceAll('ё', 'е');
   // USDA SR28, NDB 15237, cooked Atlantic salmon per 100 g.
@@ -428,7 +438,6 @@ find('today-button').hidden = isToday;
 if (!isToday) {
   find('ideas').textContent = 'Идеи для меню';
   find('eaten-title').textContent = 'Что я ела в этот день';
-  find('check-in-title').textContent = 'Как я себя чувствовала?';
   find('movement-name').previousElementSibling.textContent = 'Чем ты занималась в этот день?';
 }
 
@@ -549,7 +558,7 @@ function renderNutrition() {
 
 function nutritionText(values) {
   const [kcal, protein, fat, carbs] = values.map(value => Math.round(value * 10) / 10);
-  return `≈ ${kcal} ккал · Белки ${protein} г · Жиры ${fat} г · Углеводы ${carbs} г`;
+  return `Белок ≈ ${protein} г · ${kcal} ккал · Жиры ${fat} г · Углеводы ${carbs} г`;
 }
 
 
@@ -574,6 +583,15 @@ function openPicker(index, mode) {
   find('custom').hidden = mode === 'extra';
   find('custom').style.display = mode === 'extra' ? 'none' : '';
   find('custom').reset();
+  find('pantry-lookup').hidden = mode === 'extra';
+  find('pantry-lookup').open = false;
+  find('pantry-form').reset();
+  find('pantry-status').textContent = '';
+  renderPantryProducts();
+  find('food-lookup').hidden = mode === 'extra';
+  find('food-lookup').open = false;
+  find('food-search').reset();
+  find('food-search-status').textContent = '';
   renderOptions();
   picker.showModal();
 }
@@ -608,6 +626,9 @@ function saveSelection() {
     ? new Map([...mealDishes(meal).map(dish => [dish[0], dish]), ...dishes])
     : dishes;
   const [dish, ...additional] = chosen.values();
+  for (const entry of chosen.values()) {
+    if (entry[2]?.per100 && !all.family.some(item => item[0] === entry[0])) all.family.push(entry);
+  }
   Object.assign(meal, {dish, additional, eaten:mode === 'actual', extra:null});
   picker.close();
   save(mode === 'actual' ? 'Записано. Варианты на оставшуюся часть дня обновились.' : 'Меню сохранено');
@@ -615,6 +636,72 @@ function saveSelection() {
 }
 
 find('close').addEventListener('click', () => picker.close());
+function renderPantryProducts() {
+  const normalize = value => value.toLocaleLowerCase('ru').replaceAll('ё', 'е').trim();
+  const words = normalize(find('pantry-query').value).split(/\s+/);
+  const products = find('pantry-product');
+  products.replaceChildren(...pantry.flatMap((product, index) => {
+    const searchable = normalize(product.name + ' ' + product.aliases);
+    return words.every(word => searchable.includes(word)) ? [new Option(product.name, index)] : [];
+  }));
+  find('pantry-status').textContent = products.options.length ? '' : 'В справочнике пока нет такого продукта.';
+  renderPantryPortions();
+}
+
+function renderPantryPortions() {
+  const product = pantry[find('pantry-product').value];
+  const portions = product?.portions ?? [];
+  find('pantry-portion').replaceChildren(...portions.map(([label, grams]) => new Option(label, grams)));
+  find('pantry-add').disabled = !portions.length;
+}
+
+find('pantry-query').addEventListener('input', renderPantryProducts);
+find('pantry-product').addEventListener('change', renderPantryPortions);
+find('pantry-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const product = pantry[find('pantry-product').value];
+  const amount = Number(find('pantry-portion').value);
+  if (!product || !amount) return;
+  selection.dishes.set(product.name, [product.name, true, {per100:product.per100, amount}]);
+  renderOptions();
+  find('pantry-status').textContent = product.name + ' в списке выбранного. Нажми «Сохранить выбор».';
+});
+find('food-search').addEventListener('submit', async event => {
+  event.preventDefault();
+  const code = find('food-barcode').value.trim();
+  const amount = find('food-amount').valueAsNumber || 100;
+  if (!/^[0-9]{8,14}$/.test(code)) return;
+  const context = selection;
+  const status = find('food-search-status');
+  const submit = event.currentTarget.querySelector('button[type="submit"], button');
+  submit.disabled = true;
+  status.textContent = 'Ищу продукт…';
+  try {
+    const url = new URL(`https://world.openfoodfacts.org/api/v2/product/${code}`);
+    url.searchParams.set('fields', 'product_name,product_name_ru,nutriments');
+    const response = await fetch(url, {credentials:'omit', referrerPolicy:'no-referrer', signal:AbortSignal.timeout(10000)});
+    if (!picker.open || context !== selection) return;
+    if (response.status === 404) { status.textContent = 'Продукт не найден.'; return; }
+    if (!response.ok) throw new Error('Food database unavailable');
+    const {product} = await response.json();
+    if (!picker.open || context !== selection) return;
+    const values = ['energy-kcal_100g','proteins_100g','fat_100g','carbohydrates_100g']
+      .map(key => product?.nutriments?.[key]);
+    if (!values.every(value => typeof value === 'number' && Number.isFinite(value) && value >= 0)) {
+      status.textContent = 'В карточке этого продукта нет полных данных о составе.';
+      return;
+    }
+    const label = String(product.product_name_ru || product.product_name || 'Продукт').trim().slice(0, 80);
+    const name = `${label} · ${code}`;
+    context.dishes.set(name, [name, values[1] > 0, {per100:values, amount}]);
+    renderOptions();
+    status.textContent = `${label} добавлен к выбору. Белок: ${values[1]} г на 100 г или 100 мл по упаковке. Нажми «Сохранить выбор».`;
+  } catch {
+    if (picker.open && context === selection) status.textContent = 'Не удалось связаться с базой. Можно выбрать блюдо из списка.';
+  } finally {
+    submit.disabled = false;
+  }
+});
 find('save-selection').addEventListener('click', saveSelection);
 find('custom').addEventListener('submit', event => {
   event.preventDefault();
@@ -736,29 +823,6 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden) renderMeasurements();
 });
 
-const checkInForm = find('check-in-form');
-const checkInBody = find('check-in-body');
-const checkInMood = find('check-in-mood');
-const checkInNote = find('check-in-note');
-const checkInStatus = find('check-in-status');
-const savedCheckIn = all.checkIns[day];
-checkInBody.value = savedCheckIn?.body ?? '';
-checkInMood.value = savedCheckIn?.mood ?? '';
-checkInNote.value = savedCheckIn?.note ?? '';
-checkInForm.addEventListener('submit', event => {
-  event.preventDefault();
-  const body = checkInBody.value;
-  const mood = checkInMood.value;
-  const note = checkInNote.value.trim();
-  const hasEntry = Boolean(body || mood || note);
-  if (hasEntry) all.checkIns[day] = {body, mood, note};
-  else delete all.checkIns[day];
-  save(hasEntry ? 'Отметка сохранена' : 'Отметка очищена');
-  checkInStatus.textContent = find('status').textContent;
-  find('status').textContent = '';
-  checkInStatus.hidden = false;
-});
-checkInForm.addEventListener('change', () => { checkInStatus.hidden = true; });
 render();
 renderMovement();
 renderMeasurements();
@@ -785,7 +849,8 @@ function reportCalories(dayKey) {
   const known = foods.filter(Boolean);
   if (!known.length) return 'Нет данных о составе';
   const total = Math.round(known.reduce((sum, values) => sum + values[0], 0));
-  const estimate = `≈ ${reportNumber.format(total)} ккал`;
+  const protein = known.reduce((sum, values) => sum + values[1], 0);
+  const estimate = `Белок ≈ ${reportNumber.format(protein)} г · ${reportNumber.format(total)} ккал`;
   return known.length < foods.length ? estimate + ' · неполная оценка' : estimate;
 }
 
